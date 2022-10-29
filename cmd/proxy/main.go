@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"log"
 	"net/http"
@@ -10,10 +11,71 @@ import (
 	"os"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/cel-go/cel"
 )
 
 type policy struct {
 	Path string `json:"path"`
+	Expr string `json:"expr"`
+
+	prog cel.Program
+}
+
+func URLParamsFromRequest(req *http.Request) map[string]string {
+	rctx := chi.RouteContext(req.Context())
+	if rctx == nil {
+		return nil
+	}
+
+	params := make(map[string]string, len(rctx.URLParams.Keys))
+	for i, key := range rctx.URLParams.Keys {
+		params[key] = rctx.URLParams.Values[i]
+	}
+
+	return params
+}
+
+func (p *policy) Compile() error {
+	env, err := cel.NewEnv(
+		cel.Variable("url.path", cel.StringType),
+		cel.Variable("url.params", cel.MapType(cel.StringType, cel.StringType)),
+	)
+	if err != nil {
+		return err
+	}
+
+	ast, issues := env.Compile(p.Expr)
+	if issues != nil && issues.Err() != nil {
+		return issues.Err()
+	}
+
+	if ast.OutputType() != cel.BoolType {
+		return errors.New("output type must be boolean")
+	}
+
+	prog, err := env.Program(ast)
+	if err != nil {
+		return err
+	}
+
+	p.prog = prog
+	return nil
+}
+
+func (p *policy) Validate(req *http.Request) (bool, error) {
+	if p.prog == nil {
+		return false, errors.New("policy programm can't be nil")
+	}
+
+	val, _, err := p.prog.ContextEval(req.Context(), map[string]interface{}{
+		"url.path":   req.URL.Path,
+		"url.params": URLParamsFromRequest(req),
+	})
+	if err != nil {
+		return false, err
+	}
+
+	return (val.Value()).(bool), nil
 }
 
 var (
@@ -29,6 +91,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("fatal: parsing target url: %s", err)
 	}
+
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
 	file, err := os.Open(*policiesFileF)
@@ -36,14 +99,30 @@ func main() {
 		log.Fatalf("fatal: reading policies: %s", err)
 	}
 
-	var policies []policy
+	var policies []*policy
 	if err := json.NewDecoder(file).Decode(&policies); err != nil {
 		log.Fatalf("fatal: decoding policies file: %s", err)
 	}
 
 	rtr := chi.NewRouter()
-	for _, p := range policies {
+	for i, p := range policies {
+		if err := p.Compile(); err != nil {
+			log.Fatalf("fatal: compiling policy %d: %s", i, err)
+		}
+
 		rtr.HandleFunc(p.Path, func(rw http.ResponseWriter, req *http.Request) {
+			allowed, err := p.Validate(req)
+			if err != nil {
+				log.Printf("error: validating request: %s", err)
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			if !allowed {
+				rw.WriteHeader(http.StatusForbidden)
+				return
+			}
+
 			proxy.ServeHTTP(rw, req)
 		})
 	}

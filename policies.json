@@ -1,3 +1,4 @@
 [{
-    "path": "/user/{id}"
+    "path": "/user/{name}",
+    "expr": "has(url.params.name) && url.params.name == \"alice\""
 }]
