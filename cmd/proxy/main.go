@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/cel-go/cel"
+	"github.com/tailscale/hujson"
 )
 
 type policy struct {
@@ -96,13 +97,18 @@ func main() {
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
-	file, err := os.Open(*policiesFileF)
+	file, err := os.ReadFile(*policiesFileF)
 	if err != nil {
 		log.Fatalf("fatal: reading policies: %s", err)
 	}
 
+	file, err = hujson.Standardize(file)
+	if err != nil {
+		log.Fatalf("fatal: standardizing policies: %s", err)
+	}
+
 	var policies []*policy
-	if err := json.NewDecoder(file).Decode(&policies); err != nil {
+	if err := json.Unmarshal(file, &policies); err != nil {
 		log.Fatalf("fatal: decoding policies file: %s", err)
 	}
 

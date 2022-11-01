@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/google/cel-go v0.12.5
+	github.com/tailscale/hujson v0.0.0-20220630195928-54599719472f
 )
 
 require (
