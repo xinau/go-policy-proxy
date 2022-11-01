@@ -39,6 +39,7 @@ func (p *policy) Compile() error {
 	env, err := cel.NewEnv(
 		cel.Variable("url.path", cel.StringType),
 		cel.Variable("url.params", cel.MapType(cel.StringType, cel.StringType)),
+		cel.Variable("url.query", cel.MapType(cel.StringType, cel.ListType(cel.StringType))),
 	)
 	if err != nil {
 		return err
@@ -70,6 +71,7 @@ func (p *policy) Validate(req *http.Request) (bool, error) {
 	val, _, err := p.prog.ContextEval(req.Context(), map[string]interface{}{
 		"url.path":   req.URL.Path,
 		"url.params": URLParamsFromRequest(req),
+		"url.query":  req.URL.Query(),
 	})
 	if err != nil {
 		return false, err
