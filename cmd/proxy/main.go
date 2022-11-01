@@ -112,6 +112,9 @@ func main() {
 			log.Fatalf("fatal: compiling policy %d: %s", i, err)
 		}
 
+		// reassign as local variable due to how go handles for loops and closures
+		p := p
+
 		rtr.HandleFunc(p.Path, func(rw http.ResponseWriter, req *http.Request) {
 			allowed, err := p.Validate(req)
 			if err != nil {
