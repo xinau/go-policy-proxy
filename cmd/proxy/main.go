@@ -15,7 +15,7 @@ import (
 	"github.com/tailscale/hujson"
 )
 
-type policy struct {
+type Policy struct {
 	Path string `json:"path"`
 	Expr string `json:"expr"`
 
@@ -36,7 +36,7 @@ func URLParamsFromRequest(req *http.Request) map[string]string {
 	return params
 }
 
-func (p *policy) Compile() error {
+func (p *Policy) Compile() error {
 	env, err := cel.NewEnv(
 		cel.Variable("req.header", cel.MapType(cel.StringType, cel.ListType(cel.StringType))),
 		cel.Variable("url.path", cel.StringType),
@@ -65,7 +65,7 @@ func (p *policy) Compile() error {
 	return nil
 }
 
-func (p *policy) Validate(req *http.Request) (bool, error) {
+func (p *Policy) Validate(req *http.Request) (bool, error) {
 	if p.prog == nil {
 		return false, errors.New("policy programm can't be nil")
 	}
@@ -109,7 +109,7 @@ func main() {
 		log.Fatalf("fatal: standardizing policies: %s", err)
 	}
 
-	var policies []*policy
+	var policies []*Policy
 	if err := json.Unmarshal(file, &policies); err != nil {
 		log.Fatalf("fatal: decoding policies file: %s", err)
 	}
