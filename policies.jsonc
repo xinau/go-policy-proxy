@@ -5,9 +5,9 @@
 }, {
     // curl 'localhost:8080/test/1/params/alice'
     "path": "/test/1/params/{name}",
-    "expr": "has(url.params.name) && url.params.name == \"alice\"",
+    "expr": "url.params[\"name\"] == \"alice\"",
 }, {
     // curl 'localhost:8080/test/2/query?name=alice'
     "path": "/test/2/query",
-    "expr": "has(url.query.name) && url.query.name[0] == \"alice\"",
+    "expr": "url.query[\"name\"][0] == \"alice\"",
 }]
