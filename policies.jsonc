@@ -10,4 +10,8 @@
     // curl 'localhost:8080/test/2/query?name=alice'
     "path": "/test/2/query",
     "expr": "url.query[\"name\"][0] == \"alice\"",
+}, {
+    // curl 'localhost:8080/test/3/header' -H 'name: alice'
+    "path": "/test/3/header",
+    "expr": "req.header[\"Name\"][0] == \"alice\"",
 }]
