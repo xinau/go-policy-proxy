@@ -1,4 +1,4 @@
-module github.com/xinau/go-safe-proxy
+module github.com/xinau/go-policy-proxy
 
 go 1.18
 
