@@ -56,7 +56,9 @@ func (p *Policy) Compile() error {
 		return errors.New("output type must be boolean")
 	}
 
-	prog, err := env.Program(ast)
+	prog, err := env.Program(ast, cel.EvalOptions(
+		cel.OptOptimize,
+	))
 	if err != nil {
 		return err
 	}
