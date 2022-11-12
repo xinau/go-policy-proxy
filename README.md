@@ -87,7 +87,7 @@ _http_request_duration_seconds_ (Histogram):
 	Histogram of latencies for HTTP request in seconds.
 
 _http_request_denied_total_ (Counter):  
-	Total number of HTTP requests access denied.
+	Total number of denied HTTP requests.
 
 _http_request_in_flight_ (Gauge):  
 	Number of HTTP requests currently serving.

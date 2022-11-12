@@ -38,7 +38,7 @@ var (
 	httpRequestsDeniedM = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "http_request_denied_total",
-			Help: "Total number of HTTP requests access denied.",
+			Help: "Total number of denied HTTP requests.",
 		},
 	)
 
