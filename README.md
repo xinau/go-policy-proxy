@@ -30,8 +30,11 @@ go build -o policy-proxy ./cmd/proxy
 
 The proxy can be configured through the following command-line flags
 
-_--listen-addr_:  
-    Address to listen for incoming requests.
+_--listen-addr_ (default :8000):  
+    Address to listen for incoming requests to the proxy.
+
+_--metrics-addr_ (default :4000):
+    Address to expose Prometheus /metrics endpoint on. 
 
 _--policies-file_:  
     Path to file containing request policies written in JWCC.
@@ -70,6 +73,24 @@ _url.path_ (string):
 
 _url.query_ (map[string][]string):  
     URL query of request.
+
+
+## Metrics
+
+The policy proxy exposes the following metrics in Prometheus formate under a
+seperate address under the `/metrics` enpoint.
+
+_http_request_total_ (Counter):  
+	Total number of HTTP requests.  
+
+_http_request_duration_seconds_ (Histogram):  
+	Histogram of latencies for HTTP request in seconds.
+
+_http_request_denied_total_ (Counter):  
+	Total number of HTTP requests access denied.
+
+_http_request_in_flight_ (Gauge):  
+	Number of HTTP requests currently serving.
 
 
 ## LICENSE

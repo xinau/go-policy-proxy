@@ -20,7 +20,7 @@ import (
 var (
 	httpRequestsCounterM = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "http_requests_total",
+			Name: "http_request_total",
 			Help: "Total number of HTTP requests.",
 		},
 		[]string{},
@@ -28,8 +28,8 @@ var (
 
 	httpRequestsDurationM = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "http_requests_duration_seconds",
-			Help:    "HTTP request duration in seconds.",
+			Name:    "http_request_duration_seconds",
+			Help:    "Histogram of latencies for HTTP request in seconds.",
 			Buckets: []float64{.25, .5, 1, 2.5, 5, 10},
 		},
 		[]string{},
@@ -37,14 +37,14 @@ var (
 
 	httpRequestsDeniedM = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "http_requests_denied_total",
+			Name: "http_request_denied_total",
 			Help: "Total number of HTTP requests access denied.",
 		},
 	)
 
 	httpRequestsInFlightM = prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "http_requests_in_flight",
+			Name: "http_request_in_flight",
 			Help: "Number of HTTP requests currently serving.",
 		},
 	)
@@ -139,8 +139,8 @@ func (p *Policy) Validate(req *http.Request) (bool, error) {
 }
 
 var (
-	listenAddrF   = flag.String("listen-addr", ":8080", "address to listen for proxy requests")
-	metricsAddrF  = flag.String("metrics-addr", ":9800", "address to listen for metrics requests")
+	listenAddrF   = flag.String("listen-addr", ":8000", "address to listen for proxy requests")
+	metricsAddrF  = flag.String("metrics-addr", ":4000", "address to expose /metrics endpoint")
 	policiesFileF = flag.String("policies-file", "", "filepath to security policies")
 	targetURLF    = flag.String("target-url", "", "target url to provide access to")
 )
