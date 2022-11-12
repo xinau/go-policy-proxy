@@ -41,6 +41,8 @@ _--target-url_:
     contains a path element it will be prepended to the path inside of a policy.
 
 
+## Policies
+
 The polices file is written in [JWCC (JSON with Commas and
 Comments)][nigeltao:jwcc] using the following format.
 
@@ -54,7 +56,8 @@ Comments)][nigeltao:jwcc] using the following format.
 } ... ]
 ```
 
-A policy's rule has access to the following request metadata as variables.
+A policy's rule is a CEL programm with access to the following request metadata
+in it's environment.
 
 _req.header_ (map[string][]string):  
     HTTP headers of request.
