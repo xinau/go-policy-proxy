@@ -12,8 +12,61 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/cel-go/cel"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tailscale/hujson"
 )
+
+var (
+	httpRequestsCounterM = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_requests_total",
+			Help: "Total number of HTTP requests.",
+		},
+		[]string{},
+	)
+
+	httpRequestsDurationM = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "http_requests_duration_seconds",
+			Help:    "HTTP request duration in seconds.",
+			Buckets: []float64{.25, .5, 1, 2.5, 5, 10},
+		},
+		[]string{},
+	)
+
+	httpRequestsDeniedM = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "http_requests_denied_total",
+			Help: "Total number of HTTP requests access denied.",
+		},
+	)
+
+	httpRequestsInFlightM = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "http_requests_in_flight",
+			Help: "Number of HTTP requests currently serving.",
+		},
+	)
+)
+
+func GetCounterMetricsMiddleware(c *prometheus.CounterVec, opts ...promhttp.Option) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return promhttp.InstrumentHandlerCounter(c, h, opts...)
+	}
+}
+
+func GetDurationMetricsMiddleware(obs prometheus.ObserverVec, opts ...promhttp.Option) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return promhttp.InstrumentHandlerDuration(obs, h, opts...)
+	}
+}
+
+func GetInFlightMetricsMiddleware(g prometheus.Gauge) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return promhttp.InstrumentHandlerInFlight(g, h)
+	}
+}
 
 func URLParamsFromRequest(req *http.Request) map[string]string {
 	rctx := chi.RouteContext(req.Context())
@@ -86,7 +139,8 @@ func (p *Policy) Validate(req *http.Request) (bool, error) {
 }
 
 var (
-	listenAddrF   = flag.String("listen-addr", ":8080", "address to listen")
+	listenAddrF   = flag.String("listen-addr", ":8080", "address to listen for proxy requests")
+	metricsAddrF  = flag.String("metrics-addr", ":9800", "address to listen for metrics requests")
 	policiesFileF = flag.String("policies-file", "", "filepath to security policies")
 	targetURLF    = flag.String("target-url", "", "target url to provide access to")
 )
@@ -117,6 +171,12 @@ func main() {
 	}
 
 	rtr := chi.NewRouter()
+	rtr.Use(
+		GetCounterMetricsMiddleware(httpRequestsCounterM),
+		GetDurationMetricsMiddleware(httpRequestsDurationM),
+		GetInFlightMetricsMiddleware(httpRequestsInFlightM),
+	)
+
 	for i, p := range policies {
 		if err := p.Compile(); err != nil {
 			log.Fatalf("fatal: compiling policy %d: %s", i, err)
@@ -128,6 +188,7 @@ func main() {
 		rtr.HandleFunc(p.Path, func(rw http.ResponseWriter, req *http.Request) {
 			allowed, err := p.Validate(req)
 			if err != nil || !allowed {
+				httpRequestsDeniedM.Inc()
 				rw.WriteHeader(http.StatusForbidden)
 				return
 			}
@@ -135,6 +196,26 @@ func main() {
 			proxy.ServeHTTP(rw, req)
 		})
 	}
+
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(
+		httpRequestsCounterM,
+		httpRequestsDurationM,
+		httpRequestsDeniedM,
+		httpRequestsInFlightM,
+	)
+
+	httpRequestsCounterM.WithLabelValues().Add(0)
+
+	go func() {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}))
+
+		log.Printf("info: metrics endpoint avaiable on %s", *metricsAddrF)
+		if err := http.ListenAndServe(*metricsAddrF, mux); err != nil {
+			log.Fatalf("fatal: listening for requests %s:", err)
+		}
+	}()
 
 	log.Printf("info: listening for requests on %s", *listenAddrF)
 	if err := http.ListenAndServe(*listenAddrF, rtr); err != nil {
