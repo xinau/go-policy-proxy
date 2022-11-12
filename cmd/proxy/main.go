@@ -15,13 +15,6 @@ import (
 	"github.com/tailscale/hujson"
 )
 
-type Policy struct {
-	Path string `json:"path"`
-	Expr string `json:"expr"`
-
-	prog cel.Program
-}
-
 func URLParamsFromRequest(req *http.Request) map[string]string {
 	rctx := chi.RouteContext(req.Context())
 	if rctx == nil {
@@ -34,6 +27,13 @@ func URLParamsFromRequest(req *http.Request) map[string]string {
 	}
 
 	return params
+}
+
+type Policy struct {
+	Path string `json:"path"`
+	Expr string `json:"expr"`
+
+	prog cel.Program
 }
 
 func (p *Policy) Compile() error {
