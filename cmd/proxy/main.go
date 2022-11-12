@@ -127,13 +127,7 @@ func main() {
 
 		rtr.HandleFunc(p.Path, func(rw http.ResponseWriter, req *http.Request) {
 			allowed, err := p.Validate(req)
-			if err != nil {
-				log.Printf("error: validating request: %s", err)
-				rw.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			if !allowed {
+			if err != nil || !allowed {
 				rw.WriteHeader(http.StatusForbidden)
 				return
 			}
